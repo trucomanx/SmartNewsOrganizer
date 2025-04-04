@@ -1,0 +1,2 @@
+# SmartNewsOrganizer
+Smart news organizer
