@@ -23,7 +23,6 @@ If the program was not added to the Linux start session, then to start, use the 
 smart-news-organizer-program
 ```
 
-
 ## 2. Buy me a coffee
 
 If you find this tool useful and would like to support its development, you can buy me a coffee!  
