@@ -44,6 +44,8 @@ def parse_url(url):
         return url
     else:
         return None
+
+
 if __name__ == "__main__":
     # URL do canal com @handle
     url = "https://www.youtube.com/@untioblancoendirecto6814"

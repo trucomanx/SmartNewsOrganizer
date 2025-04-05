@@ -1,17 +1,36 @@
+import signal
 import sys
 import json
 import feedparser
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QToolBar, QAction, QSplitter,
-    QTreeView, QTableView, QTextEdit, QProgressBar, QStatusBar,
-    QVBoxLayout, QWidget, QMenu, QInputDialog, QLineEdit, QMessageBox
+    QTreeView, QTableView, QTextEdit, QProgressBar, QStatusBar, QTextBrowser, 
+    QVBoxLayout, QWidget, QMenu, QInputDialog, QLineEdit, QMessageBox, QHeaderView
 )
-from PyQt5.QtGui import QStandardItemModel, QStandardItem
-from PyQt5.QtCore import Qt, QPoint
+from PyQt5.QtGui import QStandardItemModel, QStandardItem, QFont, QDesktopServices
+from PyQt5.QtCore import Qt, QPoint, QUrl, pyqtSignal, QModelIndex
 
-from modules.feed import parse_url
+import feedparser
+
+from modules.feed  import parse_url
+from modules.dates import normalizar_data
+from modules.files import detect_formats
 
 TREE_FILE = "tree_data.json"
+LIST_DATA = []
+
+class MyTableView(QTableView):
+    doubleLeftClicked = pyqtSignal(QModelIndex)
+    doubleRightClicked = pyqtSignal(QModelIndex)
+
+    def mouseDoubleClickEvent(self, event):
+        index = self.indexAt(event.pos())
+        if index.isValid():
+            if event.button() == Qt.LeftButton:
+                self.doubleLeftClicked.emit(index)
+            elif event.button() == Qt.RightButton:
+                self.doubleRightClicked.emit(index)
+        super().mouseDoubleClickEvent(event)
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -51,20 +70,44 @@ class MainWindow(QMainWindow):
         self.tree_view.setModel(self.tree_model)
         self.tree_view.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tree_view.customContextMenuRequested.connect(self.open_tree_context_menu)
-
+        self.tree_view.doubleClicked.connect(self.handle_tree_double_click)
+        
         main_splitter.addWidget(self.tree_view)
 
         # Right splitter (TableView + TextEdit)
         right_splitter = QSplitter(Qt.Vertical)
-        self.table_view = QTableView()
-        self.text_view = QTextEdit()
+        
+        self.table_model = QStandardItemModel()
+        self.table_model.setHorizontalHeaderLabels(["ID","Title", "Data", "Author"])
+        self.table_view = MyTableView()
+        self.table_view.setModel(self.table_model)
+        self.table_view.setSortingEnabled(True)
+        self.table_view.setColumnHidden(0, True)
+        self.table_view.doubleLeftClicked.connect(self.on_table_left_double_click)
+        self.table_view.doubleRightClicked.connect(self.on_table_right_double_click)
+        self.table_view.clicked.connect(self.on_table_click)
+        self.table_view.setEditTriggers(QTableView.NoEditTriggers)
+        header = self.table_view.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Interactive)
+        #header.setSectionResizeMode(1, QHeaderView.Stretch)
+        header.resizeSection(1, 500)
+        header.resizeSection(2, 200)
+        header.resizeSection(3, 200)
+        
+        self.markdown_widget = QTextBrowser()
+        self.markdown_widget.setMarkdown("")
+        self.markdown_widget.setMinimumHeight(50)
+        fonte = QFont("Courier New")  # Ou "Monospace", "Courier", etc.
+        fonte.setStyleHint(QFont.Monospace)
+        self.markdown_widget.setFont(fonte)
 
         right_splitter.addWidget(self.table_view)
-        right_splitter.addWidget(self.text_view)
-        right_splitter.setStretchFactor(1, 1)
-
+        right_splitter.addWidget(self.markdown_widget)
+        right_splitter.setStretchFactor(0, 1)
+ 
         main_splitter.addWidget(right_splitter)
         main_splitter.setStretchFactor(1, 1)
+        
 
         layout = QVBoxLayout()
         layout.addWidget(main_splitter)
@@ -73,9 +116,114 @@ class MainWindow(QMainWindow):
         container.setLayout(layout)
         self.setCentralWidget(container)
         
-        self.tree_view.clicked.connect(self.handle_tree_click)
 
-    def handle_tree_click(self, index):
+
+    def on_table_right_double_click(self, index):
+        pass
+
+    def on_table_left_double_click(self, index):
+        row = index.row()
+        model = self.table_view.model()
+
+        data_row = []
+        for col in range(model.columnCount()):
+            index_item = model.index(row, col)
+            data_row.append(model.data(index_item))
+        
+        mydat = LIST_DATA[int(data_row[0])]
+        QDesktopServices.openUrl(QUrl(mydat["link"]))
+    
+    def on_table_click(self, index):
+        row = index.row()
+        model = self.table_view.model()
+
+        data_row = []
+        for col in range(model.columnCount()):
+            index_item = model.index(row, col)
+            data_row.append(model.data(index_item))
+
+        #print(f"Linha clicada: {row}")
+        #print(f"Dados da linha: {data_row}")
+        mydat = LIST_DATA[int(data_row[0])]
+        
+        D = detect_formats(mydat['summary'])
+        
+        maior_chave = max(D, key=D.get)
+        
+        if 'HTML'==maior_chave:
+            description =   "<h1>"+ \
+                            mydat['title']+ \
+                            "</h1>\n"+ \
+                            mydat['summary']
+            self.markdown_widget.setHtml(description)
+            
+        elif 'Markdown'==maior_chave:
+            description =   "# "+ \
+                            mydat['title']+ \
+                            "\n"+ \
+                            mydat['summary']
+            self.markdown_widget.setMarkdown(description)
+            
+        else:
+            description =   mydat['title']+ \
+                            "\n"+ \
+                            "="*len(mydat['title'])+ \
+                            "\n\n"+ \
+                            mydat['summary']
+            self.markdown_widget.setPlainText(description)
+        
+
+    def update_table_with_leaf_data(self, list_data):
+        # 1. Limpar
+        self.table_model.removeRows(0, self.table_model.rowCount())
+
+        # Se o modelo ainda não foi definido, cria e aplica uma vez
+        if not hasattr(self, 'table_model') or self.table_view.model() is None:
+            self.table_model = QStandardItemModel()
+            self.table_model.setHorizontalHeaderLabels(["ID","Title", "Data", "Author"])
+            self.table_view.setModel(self.table_model)
+            self.table_view.setSortingEnabled(True)
+            self.table_view.setColumnHidden(0, True)
+            self.table_view.doubleLeftClicked.connect(self.on_table_left_double_click)
+            self.table_view.doubleRightClicked.connect(self.on_table_right_double_click)
+            self.table_view.clicked.connect(self.on_table_click)
+            self.table_view.setEditTriggers(QTableView.NoEditTriggers)
+            header = self.table_view.horizontalHeader()
+            header.setSectionResizeMode(QHeaderView.Interactive)
+            #header.setSectionResizeMode(1, QHeaderView.Stretch)
+            header.resizeSection(1, 500)
+            header.resizeSection(2, 200)
+            header.resizeSection(3, 200)
+
+        # Adicionar os dados (esperando lista de dicionários com "title" e "url")
+        L = len(list_data)
+        self.progress.setRange(0,L)
+        for i, data in enumerate(list_data):
+            id_item = QStandardItem(str(i))
+            title_item = QStandardItem(data.title)
+            data_item = QStandardItem(normalizar_data(data.published)) 
+            author_item = QStandardItem(data.author)
+            self.table_model.appendRow([id_item, title_item, data_item, author_item])
+            self.progress.setValue(i+1)
+        self.progress.setValue(0)
+
+    def set_list_leaf_data_in_table_view(self,leaf_data_list):
+        global LIST_DATA
+        LIST_DATA=[]
+        
+        for item in leaf_data_list:
+            feed = feedparser.parse(item['url'])
+            
+            L = len(feed.entries)
+            self.progress.setRange(0,L)
+            for j, entry in enumerate(feed.entries):
+                LIST_DATA.append(entry)
+                self.progress.setValue(j+1)
+            self.progress.setValue(0)
+            
+        self.update_table_with_leaf_data(LIST_DATA)
+
+    def handle_tree_double_click(self, index):
         item = self.tree_model.itemFromIndex(index)
         leaf_data_list = []
 
@@ -86,10 +234,9 @@ class MainWindow(QMainWindow):
                 collect_leaf_data(node.child(i))
 
         collect_leaf_data(item)
+        
+        self.set_list_leaf_data_in_table_view(leaf_data_list)
 
-        print("=== LEAF DATA ENCONTRADO ===")
-        for data in leaf_data_list:
-            print(json.dumps(data, indent=2, ensure_ascii=False))
 
     def _create_statusbar(self):
         self.status = QStatusBar()
@@ -193,11 +340,14 @@ class MainWindow(QMainWindow):
         for item_data in data:
             self.tree_model.appendRow(deserialize_item(item_data))
 
-
-if __name__ == "__main__":
+def main():
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
     app = QApplication(sys.argv)
     window = MainWindow()
-    window.resize(1000, 600)
+    window.resize(1200, 800)
     window.show()
     sys.exit(app.exec_())
+    
+if __name__ == "__main__":
+    main()
 
