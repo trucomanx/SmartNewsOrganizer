@@ -70,6 +70,14 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle(about.__program_name__)
+        self.setGeometry(50, 50, 1200, 800)
+        
+        ## Icon
+        # Get base directory for icons
+        base_dir_path = os.path.dirname(os.path.abspath(__file__))
+        icon_path = os.path.join(base_dir_path, 'icons', 'logo.png')
+        self.setWindowIcon(QIcon(icon_path)) 
+
 
         self._create_toolbar()
         self._create_central_widget()
@@ -301,6 +309,7 @@ class MainWindow(QMainWindow):
         self.progress.setValue(0)
         self.status.addPermanentWidget(self.progress)
 
+
     def open_tree_context_menu(self, position: QPoint):
         index = self.tree_view.indexAt(position)
         selected_item = self.tree_model.itemFromIndex(index) if index.isValid() else None
@@ -347,6 +356,20 @@ class MainWindow(QMainWindow):
             url = parse_url(url)
 
             if ok2 and url is not None:
+                # Verifica se a URL já existe entre os filhos do nodo selecionado
+                exists = False
+                for row in range(selected_item.rowCount()):
+                    child = selected_item.child(row)
+                    data = child.data()
+                    if isinstance(data, dict) and data.get("url") == url:
+                        exists = True
+                        break
+                
+                if exists:
+                    QMessageBox.warning(self, "URL duplicada", "Esta URL já está presente neste nó.")
+                    return
+
+                # Criação do novo leaf
                 feed = feedparser.parse(url)
 
                 leaf_data = {
@@ -359,10 +382,7 @@ class MainWindow(QMainWindow):
                 new_leaf.setIcon(QIcon.fromTheme("application-rss+xml")) 
                 new_leaf.setData(leaf_data)
 
-                if selected_item:
-                    selected_item.appendRow(new_leaf)
-                else:
-                    self.tree_model.appendRow(new_leaf)
+                selected_item.appendRow(new_leaf)
                 self.save_tree_structure()
 
         elif action == rename_node_action:
