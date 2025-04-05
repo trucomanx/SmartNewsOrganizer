@@ -1,13 +1,14 @@
 import signal
 import sys
 import json
+import os
 import feedparser
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QToolBar, QAction, QSplitter,
     QTreeView, QTableView, QTextEdit, QProgressBar, QStatusBar, QTextBrowser, 
     QVBoxLayout, QWidget, QMenu, QInputDialog, QLineEdit, QMessageBox, QHeaderView
 )
-from PyQt5.QtGui import QStandardItemModel, QStandardItem, QFont, QDesktopServices
+from PyQt5.QtGui import QStandardItemModel, QStandardItem, QFont, QDesktopServices, QIcon
 from PyQt5.QtCore import Qt, QPoint, QUrl, pyqtSignal, QModelIndex
 
 import feedparser
@@ -15,8 +16,40 @@ import feedparser
 from modules.feed  import parse_url
 from modules.dates import normalizar_data
 from modules.files import detect_formats
+from modules.data  import SYSTEM_DATA
 
-TREE_FILE = "tree_data.json"
+import about as about
+
+CONFIG_FILE = "~/.config/smart_news_organizer/config_data.json"
+config_data = SYSTEM_DATA.copy()
+config_file_path = os.path.expanduser(CONFIG_FILE)
+
+try:
+    if not os.path.exists(config_file_path):
+        os.makedirs(os.path.dirname(config_file_path), exist_ok=True)
+        
+        with open(config_file_path, "w", encoding="utf-8") as arquivo:
+            json.dump(config_data, arquivo, indent=4)
+        print(f"File created in: {config_file_path}")
+        
+    with open(config_file_path, "r") as arquivo:
+        config_data = json.load(arquivo)
+    
+except FileNotFoundError:
+    print(f"Error: The file '{config_file_path}' was not found.")
+    sys.exit()
+    
+except json.JSONDecodeError:
+    print(f"Error: The file '{config_file_path}' dont have a valid JSON.")
+    sys.exit()
+
+print("config_file_path:",config_file_path)
+print(json.dumps(config_data, indent=4, ensure_ascii=False))
+
+
+TREE_FILE = "~/.config/smart_news_organizer/tree_data.json"
+tree_file_path = os.path.expanduser(TREE_FILE)
+
 LIST_DATA = []
 
 class MyTableView(QTableView):
@@ -36,7 +69,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("Exemplo com Qt5")
+        self.setWindowTitle(about.__program_name__)
 
         self._create_toolbar()
         self._create_central_widget()
@@ -47,16 +80,21 @@ class MainWindow(QMainWindow):
     def _create_toolbar(self):
         toolbar = QToolBar("Main Toolbar")
         self.addToolBar(toolbar)
+        toolbar.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
 
-        refresh_action = QAction("Refresh", self)
-        about_action = QAction("About", self)
-        config_action = QAction("Configurate", self)
+        coffee_action = QAction(QIcon.fromTheme("emblem-favorite"),"Coffee", self)
+        about_action = QAction(QIcon.fromTheme("help-about"),"About", self)
+        config_action = QAction(QIcon.fromTheme("document-properties"),"Configure", self)
+        
+        coffee_action.setToolTip("Buy me a coffee (TrucomanX)")
+        about_action.setToolTip("About the program")
+        config_action.setToolTip("Configure program variables")
 
-        refresh_action.triggered.connect(lambda: self.statusBar().showMessage("Refresh pressed"))
+        coffee_action.triggered.connect(self.on_coffee_action_click)
         about_action.triggered.connect(self.show_about)
-        config_action.triggered.connect(lambda: self.statusBar().showMessage("Open Config"))
+        config_action.triggered.connect(self.on_config_action_click)
 
-        toolbar.addAction(refresh_action)
+        toolbar.addAction(coffee_action)
         toolbar.addAction(about_action)
         toolbar.addAction(config_action)
 
@@ -117,7 +155,12 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(container)
         
 
-
+    def on_config_action_click(self):
+        QDesktopServices.openUrl(QUrl.fromLocalFile(config_file_path))
+        
+    def on_coffee_action_click(self):
+        QDesktopServices.openUrl(QUrl("https://ko-fi.com/trucomanx"))
+        
     def on_table_right_double_click(self, index):
         pass
 
@@ -211,7 +254,8 @@ class MainWindow(QMainWindow):
         global LIST_DATA
         LIST_DATA=[]
         
-        for item in leaf_data_list:
+        M = len(leaf_data_list)
+        for i, item in enumerate(leaf_data_list):
             feed = feedparser.parse(item['url'])
             
             L = len(feed.entries)
@@ -220,23 +264,33 @@ class MainWindow(QMainWindow):
                 LIST_DATA.append(entry)
                 self.progress.setValue(j+1)
             self.progress.setValue(0)
+            self.status.showMessage(f"Collected feeds of leaf {i+1}/{M}",5000)
             
         self.update_table_with_leaf_data(LIST_DATA)
 
     def handle_tree_double_click(self, index):
+        self.status.showMessage("Searching for feeds",5000)
+        self.table_view.setEnabled(False)
         item = self.tree_model.itemFromIndex(index)
         leaf_data_list = []
 
         def collect_leaf_data(node):
             if isinstance(node.data(), dict):
                 leaf_data_list.append(node.data())
-            for i in range(node.rowCount()):
+            L = node.rowCount()
+            self.progress.setRange(0,L)
+            for i in range(L):
                 collect_leaf_data(node.child(i))
-
+                self.progress.setValue(i+1)
+            self.progress.setValue(0)
+        
         collect_leaf_data(item)
+        self.status.showMessage("Collected all leaf data",5000)
         
         self.set_list_leaf_data_in_table_view(leaf_data_list)
-
+        
+        self.table_view.setEnabled(True)
+        self.status.showMessage("")
 
     def _create_statusbar(self):
         self.status = QStatusBar()
@@ -251,27 +305,37 @@ class MainWindow(QMainWindow):
         index = self.tree_view.indexAt(position)
         selected_item = self.tree_model.itemFromIndex(index) if index.isValid() else None
 
-        model = self.tree_view.model()
-        if model.hasChildren(index):
-            print("É um nó")
-        else:
-            print("É uma folha")
-
+        if selected_item is None: # nao selecionou nada
+            return
 
         menu = QMenu()
-        add_node_action = menu.addAction("Adicionar novo nodo")
-        add_leaf_action = menu.addAction("Adicionar folha final (com URL)")
-        rename_node_action = menu.addAction("Renomear nodo")
+        
+        add_node_action = None
+        add_leaf_action = None
+        if selected_item.data() is None:
+            add_node_action = menu.addAction(QIcon.fromTheme("document-new"),"Add new node")
+            add_leaf_action = menu.addAction(QIcon.fromTheme("document-new"),"Add new lead (with URL)")
+        
+        model = self.tree_view.model()
+        rename_node_action = None
+        if model.hasChildren(index): # É um nó
+            rename_node_action = menu.addAction(QIcon.fromTheme("document-edit"),"Rename")
+        
+       
+        
         menu.addSeparator()
-        remove_node_action = menu.addAction("Remover nodo")
-        remove_leaf_action = menu.addAction("Remover folha")
+        remove_action = menu.addAction(QIcon.fromTheme("edit-clear"),"Remove")  # Apenas uma opção de remoção
 
         action = menu.exec_(self.tree_view.viewport().mapToGlobal(position))
 
+        if action is None:# faço click fora
+            return
+        
         if action == add_node_action:
-            name, ok = QInputDialog.getText(self, "Nome do novo nodo", "Digite o nome:")
+            name, ok = QInputDialog.getText(self, "New Node Name", "Enter the name:")
             if ok and name:
                 new_item = QStandardItem(name)
+                new_item.setIcon(QIcon.fromTheme("folder"))  # ícone de pasta
                 if selected_item:
                     selected_item.appendRow(new_item)
                 else:
@@ -279,12 +343,12 @@ class MainWindow(QMainWindow):
                 self.save_tree_structure()
 
         elif action == add_leaf_action:
-            url, ok2 = QInputDialog.getText(self, "URL", "Digite a URL:")
+            url, ok2 = QInputDialog.getText(self, "URL", "Enter the URL:")
             url = parse_url(url)
-       
+
             if ok2 and url is not None:
                 feed = feedparser.parse(url)
-                
+
                 leaf_data = {
                     "title": feed.feed.get("title", "Title"),
                     "url": url,
@@ -292,6 +356,7 @@ class MainWindow(QMainWindow):
                 }
                 leaf_text = f"{leaf_data['title']} ({leaf_data['url']})"
                 new_leaf = QStandardItem(leaf_text)
+                new_leaf.setIcon(QIcon.fromTheme("application-rss+xml")) 
                 new_leaf.setData(leaf_data)
 
                 if selected_item:
@@ -303,16 +368,15 @@ class MainWindow(QMainWindow):
         elif action == rename_node_action:
             if selected_item and selected_item.rowCount() > 0:  # É um nodo
                 novo_nome, ok = QInputDialog.getText(self, 
-                                                    "Renomear nodo", 
-                                                    "Novo nome:", 
+                                                    "Rename Nodo", 
+                                                    "New name:", 
                                                     QLineEdit.Normal, 
                                                     selected_item.text())
                 if ok and novo_nome:
                     selected_item.setText(novo_nome)
                     self.save_tree_structure()
 
-
-        elif action == remove_node_action or action == remove_leaf_action:
+        elif action == remove_action:
             if selected_item:
                 parent = selected_item.parent()
                 if parent:
@@ -320,6 +384,8 @@ class MainWindow(QMainWindow):
                 else:
                     self.tree_model.removeRow(selected_item.row())
                 self.save_tree_structure()
+
+        
 
     def show_about(self):
         QMessageBox.information(self, "Sobre", "Exemplo criado com PyQt5.\n(c) Fernando")
@@ -337,12 +403,12 @@ class MainWindow(QMainWindow):
         root_items = [self.tree_model.item(i) for i in range(self.tree_model.rowCount())]
         data = [serialize_item(item) for item in root_items]
 
-        with open(TREE_FILE, "w", encoding="utf-8") as f:
+        with open(tree_file_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
     def load_tree_structure(self):
         import os
-        if not os.path.exists(TREE_FILE):
+        if not os.path.exists(tree_file_path):
             root_item = QStandardItem("Root")
             self.tree_model.appendRow(root_item)
             return
@@ -350,11 +416,16 @@ class MainWindow(QMainWindow):
         def deserialize_item(data):
             item = QStandardItem(data['text'])
             item.setData(data.get('user_data'))
+            if data.get('user_data',None) is None:
+                item.setIcon(QIcon.fromTheme("folder"))
+            else:
+                item.setIcon(QIcon.fromTheme("application-rss+xml"))
+             
             for child_data in data['children']:
                 item.appendRow(deserialize_item(child_data))
             return item
 
-        with open(TREE_FILE, "r", encoding="utf-8") as f:
+        with open(tree_file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         for item_data in data:
