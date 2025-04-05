@@ -251,9 +251,17 @@ class MainWindow(QMainWindow):
         index = self.tree_view.indexAt(position)
         selected_item = self.tree_model.itemFromIndex(index) if index.isValid() else None
 
+        model = self.tree_view.model()
+        if model.hasChildren(index):
+            print("É um nó")
+        else:
+            print("É uma folha")
+
+
         menu = QMenu()
         add_node_action = menu.addAction("Adicionar novo nodo")
         add_leaf_action = menu.addAction("Adicionar folha final (com URL)")
+        rename_node_action = menu.addAction("Renomear nodo")
         menu.addSeparator()
         remove_node_action = menu.addAction("Remover nodo")
         remove_leaf_action = menu.addAction("Remover folha")
@@ -291,6 +299,18 @@ class MainWindow(QMainWindow):
                 else:
                     self.tree_model.appendRow(new_leaf)
                 self.save_tree_structure()
+
+        elif action == rename_node_action:
+            if selected_item and selected_item.rowCount() > 0:  # É um nodo
+                novo_nome, ok = QInputDialog.getText(self, 
+                                                    "Renomear nodo", 
+                                                    "Novo nome:", 
+                                                    QLineEdit.Normal, 
+                                                    selected_item.text())
+                if ok and novo_nome:
+                    selected_item.setText(novo_nome)
+                    self.save_tree_structure()
+
 
         elif action == remove_node_action or action == remove_leaf_action:
             if selected_item:
