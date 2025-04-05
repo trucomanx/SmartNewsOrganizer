@@ -72,6 +72,24 @@ class MainWindow(QMainWindow):
         container = QWidget()
         container.setLayout(layout)
         self.setCentralWidget(container)
+        
+        self.tree_view.clicked.connect(self.handle_tree_click)
+
+    def handle_tree_click(self, index):
+        item = self.tree_model.itemFromIndex(index)
+        leaf_data_list = []
+
+        def collect_leaf_data(node):
+            if isinstance(node.data(), dict):
+                leaf_data_list.append(node.data())
+            for i in range(node.rowCount()):
+                collect_leaf_data(node.child(i))
+
+        collect_leaf_data(item)
+
+        print("=== LEAF DATA ENCONTRADO ===")
+        for data in leaf_data_list:
+            print(json.dumps(data, indent=2, ensure_ascii=False))
 
     def _create_statusbar(self):
         self.status = QStatusBar()
