@@ -1,4 +1,6 @@
 import sys
+import json
+import feedparser
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QToolBar, QAction, QSplitter,
     QTreeView, QTableView, QTextEdit, QProgressBar, QStatusBar,
@@ -7,6 +9,9 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from PyQt5.QtCore import Qt, QPoint
 
+from modules.feed import parse_url
+
+TREE_FILE = "tree_data.json"
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -17,6 +22,8 @@ class MainWindow(QMainWindow):
         self._create_toolbar()
         self._create_central_widget()
         self._create_statusbar()
+
+        self.load_tree_structure()
 
     def _create_toolbar(self):
         toolbar = QToolBar("Main Toolbar")
@@ -45,8 +52,7 @@ class MainWindow(QMainWindow):
         self.tree_view.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tree_view.customContextMenuRequested.connect(self.open_tree_context_menu)
 
-        root_item = QStandardItem("Root")
-        self.tree_model.appendRow(root_item)
+        main_splitter.addWidget(self.tree_view)
 
         # Right splitter (TableView + TextEdit)
         right_splitter = QSplitter(Qt.Vertical)
@@ -57,7 +63,6 @@ class MainWindow(QMainWindow):
         right_splitter.addWidget(self.text_view)
         right_splitter.setStretchFactor(1, 1)
 
-        main_splitter.addWidget(self.tree_view)
         main_splitter.addWidget(right_splitter)
         main_splitter.setStretchFactor(1, 1)
 
@@ -98,19 +103,21 @@ class MainWindow(QMainWindow):
                     selected_item.appendRow(new_item)
                 else:
                     self.tree_model.appendRow(new_item)
+                self.save_tree_structure()
 
         elif action == add_leaf_action:
-            label, ok1 = QInputDialog.getText(self, "Nome", "Digite o nome:")
             url, ok2 = QInputDialog.getText(self, "URL", "Digite a URL:")
-            desc, ok3 = QInputDialog.getText(self, "Descrição", "Digite a descrição:")
-
-            if ok1 and ok2 and ok3:
+            url = parse_url(url)
+       
+            if ok2 and url is not None:
+                feed = feedparser.parse(url)
+                
                 leaf_data = {
-                    "label": label,
+                    "title": feed.feed.get("title", "Title"),
                     "url": url,
-                    "description": desc
+                    "description": feed.feed.get("subtitle", "Description")
                 }
-                leaf_text = f"{leaf_data['label']} ({leaf_data['url']})"
+                leaf_text = f"{leaf_data['title']} ({leaf_data['url']})"
                 new_leaf = QStandardItem(leaf_text)
                 new_leaf.setData(leaf_data)
 
@@ -118,25 +125,55 @@ class MainWindow(QMainWindow):
                     selected_item.appendRow(new_leaf)
                 else:
                     self.tree_model.appendRow(new_leaf)
+                self.save_tree_structure()
 
-        elif action == remove_node_action:
+        elif action == remove_node_action or action == remove_leaf_action:
             if selected_item:
                 parent = selected_item.parent()
                 if parent:
                     parent.removeRow(selected_item.row())
                 else:
                     self.tree_model.removeRow(selected_item.row())
-
-        elif action == remove_leaf_action:
-            if selected_item and selected_item.rowCount() == 0:
-                parent = selected_item.parent()
-                if parent:
-                    parent.removeRow(selected_item.row())
-                else:
-                    self.tree_model.removeRow(selected_item.row())
+                self.save_tree_structure()
 
     def show_about(self):
         QMessageBox.information(self, "Sobre", "Exemplo criado com PyQt5.\n(c) Fernando")
+
+    # SERIALIZAÇÃO DO TREEVIEW
+    def save_tree_structure(self):
+        def serialize_item(item):
+            data = {
+                'text': item.text(),
+                'user_data': item.data(),
+                'children': [serialize_item(item.child(i)) for i in range(item.rowCount())]
+            }
+            return data
+
+        root_items = [self.tree_model.item(i) for i in range(self.tree_model.rowCount())]
+        data = [serialize_item(item) for item in root_items]
+
+        with open(TREE_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+
+    def load_tree_structure(self):
+        import os
+        if not os.path.exists(TREE_FILE):
+            root_item = QStandardItem("Root")
+            self.tree_model.appendRow(root_item)
+            return
+
+        def deserialize_item(data):
+            item = QStandardItem(data['text'])
+            item.setData(data.get('user_data'))
+            for child_data in data['children']:
+                item.appendRow(deserialize_item(child_data))
+            return item
+
+        with open(TREE_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        for item_data in data:
+            self.tree_model.appendRow(deserialize_item(item_data))
 
 
 if __name__ == "__main__":

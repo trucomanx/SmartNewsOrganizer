@@ -1,0 +1,38 @@
+[
+  {
+    "text": "Root",
+    "user_data": null,
+    "children": [
+      {
+        "text": "Redes neurais",
+        "user_data": null,
+        "children": [
+          {
+            "text": "Xataka (https://www.xataka.com/feedburner.xml)",
+            "user_data": {
+              "description": "Publicaci\u00f3n de noticias sobre gadgets y tecnolog\u00eda. \u00daltimas tecnolog\u00edas en electr\u00f3nica de consumo y novedades tecnol\u00f3gicas en m\u00f3viles, tablets, inform\u00e1tica, etc",
+              "title": "Xataka",
+              "url": "https://www.xataka.com/feedburner.xml"
+            },
+            "children": []
+          }
+        ]
+      },
+      {
+        "text": "Youtube",
+        "user_data": null,
+        "children": [
+          {
+            "text": "Un T\u00edo Blanco En Directo (https://www.youtube.com/feeds/videos.xml?channel_id=UCDoiP7u4X3i_FWrNbi_6wZA)",
+            "user_data": {
+              "description": "Description",
+              "title": "Un T\u00edo Blanco En Directo",
+              "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCDoiP7u4X3i_FWrNbi_6wZA"
+            },
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+]
