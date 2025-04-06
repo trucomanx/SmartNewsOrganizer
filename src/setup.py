@@ -33,11 +33,9 @@ setup(
     install_requires=[
         "PyQt5",
         "deep-consultation",
-        "matplotlib",
-        "networkx",
-        "numpy",
-        "scikit-learn",
-        "pillow"
+        "feedparser",
+        "python-dateutil",
+        "requests"
     ],
     entry_points={
         'console_scripts': [

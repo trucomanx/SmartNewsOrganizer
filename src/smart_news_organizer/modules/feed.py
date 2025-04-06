@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-# pip install feedparser
 
 import re
 import requests

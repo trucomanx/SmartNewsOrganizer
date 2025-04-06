@@ -1,6 +1,6 @@
 # smart-news-organizer
 
-Program that translate text.
+Program to organize news, this program makes use of AI to give summaries.
 
 ![logo](https://raw.githubusercontent.com/trucomanx/SmartNewsOrganizer/main/src/smart_news_organizer/icons/logo.png)
 
@@ -13,24 +13,26 @@ To install the package from `PyPI`, follow the instructions below:
 pip install --upgrade smart-news-organizer
 ```
 
-Execute `which smart-news-organizer-program` to see where it was installed, probably in `/home/USERNAME/.local/bin/smart-news-organizer-program`.
+Execute `which smart-news-organizer` to see where it was installed, probably in `/home/USERNAME/.local/bin/smart-news-organizer`.
 
 ### Using
 
-If the program was not added to the Linux start session, then to start, use the command below:
+To start, use the command below:
 
 ```bash
-smart-news-organizer-program
+smart-news-organizer
 ```
+## 2. More information
 
+If deseas mas informação ve a [README.extras.md](https://github.com/trucomanx/SmartNewsOrganizer/blob/main/README.extras.md)
 
-## 2. Buy me a coffee
+## 3. Buy me a coffee
 
 If you find this tool useful and would like to support its development, you can buy me a coffee!  
 Your donations help keep the project running and improve future updates.  
 
 [☕ Buy me a coffee](https://ko-fi.com/trucomanx) 
 
-## 3. License
+## 4. License
 
 This project is licensed under the GPL license. See the `LICENSE` file for more details.

@@ -13,12 +13,12 @@ from PyQt5.QtCore import Qt, QPoint, QUrl, pyqtSignal, QModelIndex
 
 import feedparser
 
-from modules.feed  import parse_url
-from modules.dates import normalizar_data
-from modules.files import detect_formats
-from modules.data  import SYSTEM_DATA
+from smart_news_organizer.modules.feed  import parse_url
+from smart_news_organizer.modules.dates import normalizar_data
+from smart_news_organizer.modules.files import detect_formats
+from smart_news_organizer.modules.data  import SYSTEM_DATA
 
-import about as about
+import smart_news_organizer.about as about
 
 CONFIG_FILE = "~/.config/smart_news_organizer/config_data.json"
 config_data = SYSTEM_DATA.copy()
@@ -257,6 +257,8 @@ class MainWindow(QMainWindow):
             self.table_model.appendRow([id_item, title_item, data_item, author_item])
             self.progress.setValue(i+1)
         self.progress.setValue(0)
+        
+        self.table_view.sortByColumn(2, Qt.DescendingOrder)
 
     def set_list_leaf_data_in_table_view(self,leaf_data_list):
         global LIST_DATA

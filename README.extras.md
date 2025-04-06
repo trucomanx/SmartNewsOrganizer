@@ -2,11 +2,11 @@
 
 Program that translate text
 
-## Testar indicator
+## Testar program
 
 ```bash
 cd src
-python3 -m smart_news_organizer.indicator
+python3 -m smart_news_organizer.program
 ```
 
 ## Upload to PYPI
@@ -28,7 +28,7 @@ pip install --upgrade smart-news-organizer
 Using:
 
 ```bash
-smart-news-organizer-indicator
+smart-news-organizer
 ```
 
 ## Install from source
@@ -45,7 +45,7 @@ pip install dist/smart_news_organizer-*.tar.gz
 Using:
 
 ```bash
-smart-news-organizer-indicator
+smart-news-organizer
 ```
 
 ## Uninstall
