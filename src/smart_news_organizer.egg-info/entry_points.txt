@@ -1,2 +1,0 @@
-[console_scripts]
-smart-news-organizer = smart_news_organizer.program:main
