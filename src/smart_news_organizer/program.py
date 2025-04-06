@@ -13,11 +13,12 @@ from PyQt5.QtCore import Qt, QPoint, QUrl, pyqtSignal, QModelIndex
 
 import feedparser
 
-from smart_news_organizer.modules.feed  import parse_url
-from smart_news_organizer.modules.dates import normalizar_data
-from smart_news_organizer.modules.files import detect_formats
-from smart_news_organizer.modules.data  import SYSTEM_DATA
-
+from smart_news_organizer.modules.feed    import parse_url
+from smart_news_organizer.modules.dates   import normalizar_data, get_datetime
+from smart_news_organizer.modules.files   import detect_formats
+from smart_news_organizer.modules.data    import SYSTEM_DATA
+from smart_news_organizer.modules.wabout  import show_about_window
+from smart_news_organizer.modules.consult import summarize_news
 import smart_news_organizer.about as about
 
 CONFIG_FILE = "~/.config/smart_news_organizer/config_data.json"
@@ -92,19 +93,38 @@ class MainWindow(QMainWindow):
 
         coffee_action = QAction(QIcon.fromTheme("emblem-favorite"),"Coffee", self)
         about_action = QAction(QIcon.fromTheme("help-about"),"About", self)
+        help_action = QAction(QIcon.fromTheme("x-office-address-book"),"Help", self)
         config_action = QAction(QIcon.fromTheme("document-properties"),"Configure", self)
+        usage_action = QAction(QIcon.fromTheme("emblem-web"),"Usage", self)
+        summarize_action = QAction(QIcon.fromTheme("format-text-strikethrough"),"Summarize", self)
+
         
         coffee_action.setToolTip("Buy me a coffee (TrucomanX)")
         about_action.setToolTip("About the program")
+        help_action.setToolTip("Help information of the program")
         config_action.setToolTip("Configure program variables")
+        usage_action.setToolTip("Open url with AI usage information")
+        summarize_action.setToolTip("Summarize the news")
+
 
         coffee_action.triggered.connect(self.on_coffee_action_click)
         about_action.triggered.connect(self.show_about)
+        help_action.triggered.connect(self.show_help)
         config_action.triggered.connect(self.on_config_action_click)
+        usage_action.triggered.connect(self.on_usage_action_click)
+        summarize_action.triggered.connect(self.on_summarize_action_click)
+
 
         toolbar.addAction(coffee_action)
         toolbar.addAction(about_action)
+        toolbar.addAction(help_action)
         toolbar.addAction(config_action)
+        toolbar.addAction(usage_action)
+        
+        toolbar.addSeparator()
+        
+        toolbar.addAction(summarize_action)
+
 
     def _create_central_widget(self):
         main_splitter = QSplitter(Qt.Horizontal)
@@ -162,6 +182,8 @@ class MainWindow(QMainWindow):
         container.setLayout(layout)
         self.setCentralWidget(container)
         
+    def on_usage_action_click(self):
+        QDesktopServices.openUrl(QUrl(config_data["usage"]))    
 
     def on_config_action_click(self):
         QDesktopServices.openUrl(QUrl.fromLocalFile(config_file_path))
@@ -258,7 +280,7 @@ class MainWindow(QMainWindow):
             self.progress.setValue(i+1)
         self.progress.setValue(0)
         
-        self.table_view.sortByColumn(2, Qt.DescendingOrder)
+        #self.table_view.sortByColumn(2, Qt.DescendingOrder)
 
     def set_list_leaf_data_in_table_view(self,leaf_data_list):
         global LIST_DATA
@@ -275,7 +297,9 @@ class MainWindow(QMainWindow):
                 self.progress.setValue(j+1)
             self.progress.setValue(0)
             self.status.showMessage(f"Collected feeds of leaf {i+1}/{M}",5000)
-            
+        
+        
+        LIST_DATA.sort(key=get_datetime, reverse=True)
         self.update_table_with_leaf_data(LIST_DATA)
 
     def handle_tree_double_click(self, index):
@@ -410,10 +434,33 @@ class MainWindow(QMainWindow):
         
 
     def show_about(self):
-        QMessageBox.information(self, "Sobre", "Exemplo criado com PyQt5.\n(c) Fernando")
-
-    # SERIALIZAÇÃO DO TREEVIEW
+        #QMessageBox.information(self, "Sobre", "Exemplo criado com PyQt5.\n(c) Fernando")
+        
+        data = {
+            "version": about.__version__,
+            "package": about.__package__,
+            "program_name": about.__program_name__,
+            "author": about.__author__,
+            "email": about.__email__,
+            "description": about.__description__,
+            "url_source": about.__url_source__,
+            "url_funding": about.__url_funding__,
+            "url_bugs": about.__url_bugs__
+        }
+        
+        base_dir_path = os.path.dirname(os.path.abspath(__file__))
+        logo_path = os.path.join(base_dir_path, 'icons', 'logo.png')
+        
+        show_about_window(data,logo_path)
+        
+    def on_summarize_action_click(self):
+        summarize_news(self, config_data, LIST_DATA)
+        
+    def show_help(self):
+        QDesktopServices.openUrl(QUrl("https://github.com/trucomanx/SmartNewsOrganizer/tree/main/doc"))
+        
     def save_tree_structure(self):
+        # SERIALIZAÇÃO DO TREEVIEW
         def serialize_item(item):
             data = {
                 'text': item.text(),

@@ -1,0 +1,4 @@
+include README.md
+include LICENSE
+recursive-include smart_news_organizer/icons *.png *.svg
+

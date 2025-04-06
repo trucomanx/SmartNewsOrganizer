@@ -12,8 +12,10 @@ python3 -m smart_news_organizer.program
 ## Upload to PYPI
 
 ```bash
+pip install --upgrade pkginfo twine packaging
+
 cd src
-python setup.py sdist bdist_wheel
+python -m build
 twine upload dist/*
 ```
 
