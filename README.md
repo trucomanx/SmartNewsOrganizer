@@ -2,7 +2,7 @@
 
 Program to organize news, this program makes use of AI to give summaries.
 
-![logo](https://raw.githubusercontent.com/trucomanx/SmartNewsOrganizer/main/src/smart_news_organizer/icons/logo.png)
+![logo](https://raw.githubusercontent.com/trucomanx/SmartNewsOrganizer/main/screenshot.png)
 
 ## 1. Installing
 

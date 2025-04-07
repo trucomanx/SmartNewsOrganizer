@@ -60,7 +60,7 @@ dependencies = [
 "{__program_name__}" = "{__package__}.program:main"
 
 [tool.setuptools]
-packages = ["smart_news_organizer", "smart_news_organizer.modules"]
+packages = ["{__package__}", "{__package__}.modules"]
 
 [tool.setuptools.package-data]
 "{__package__}" = ["icons/logo.png"]
