@@ -503,6 +503,7 @@ class MainWindow(QMainWindow):
 def main():
     signal.signal(signal.SIGINT, signal.SIG_DFL)
     app = QApplication(sys.argv)
+    app.setApplicationName("smart_news_organizer") # xprop WM_CLASS # *.desktop -> StartupWMClass
     window = MainWindow()
     window.resize(1200, 800)
     window.show()
