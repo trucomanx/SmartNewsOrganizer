@@ -67,6 +67,7 @@ class MyTableView(QTableView):
         super().mouseDoubleClickEvent(event)
 
 class MainWindow(QMainWindow):
+    ############################################################################
     def __init__(self):
         super().__init__()
 
@@ -86,6 +87,7 @@ class MainWindow(QMainWindow):
 
         self.load_tree_structure()
 
+    ############################################################################
     def _create_toolbar(self):
         toolbar = QToolBar("Main Toolbar")
         self.addToolBar(toolbar)
@@ -125,7 +127,7 @@ class MainWindow(QMainWindow):
         
         toolbar.addAction(summarize_action)
 
-
+    ############################################################################
     def _create_central_widget(self):
         main_splitter = QSplitter(Qt.Horizontal)
 
@@ -181,19 +183,24 @@ class MainWindow(QMainWindow):
         container = QWidget()
         container.setLayout(layout)
         self.setCentralWidget(container)
-        
+
+    ############################################################################
     def on_usage_action_click(self):
         QDesktopServices.openUrl(QUrl(config_data["usage"]))    
 
+    ############################################################################
     def on_config_action_click(self):
         QDesktopServices.openUrl(QUrl.fromLocalFile(config_file_path))
         
+    ############################################################################
     def on_coffee_action_click(self):
         QDesktopServices.openUrl(QUrl("https://ko-fi.com/trucomanx"))
-        
+    
+    ############################################################################
     def on_table_right_double_click(self, index):
         pass
 
+    ############################################################################
     def on_table_left_double_click(self, index):
         row = index.row()
         model = self.table_view.model()
@@ -206,6 +213,7 @@ class MainWindow(QMainWindow):
         mydat = LIST_DATA[int(data_row[0])]
         QDesktopServices.openUrl(QUrl(mydat["link"]))
     
+    ############################################################################
     def on_table_click(self, index):
         row = index.row()
         model = self.table_view.model()
@@ -245,7 +253,7 @@ class MainWindow(QMainWindow):
                             mydat['summary']
             self.markdown_widget.setPlainText(description)
         
-
+    ############################################################################
     def update_table_with_leaf_data(self, list_data):
         # 1. Limpar
         self.table_model.removeRows(0, self.table_model.rowCount())
@@ -282,6 +290,7 @@ class MainWindow(QMainWindow):
         
         #self.table_view.sortByColumn(2, Qt.DescendingOrder)
 
+    ############################################################################
     def set_list_leaf_data_in_table_view(self,leaf_data_list):
         global LIST_DATA
         LIST_DATA=[]
@@ -302,6 +311,7 @@ class MainWindow(QMainWindow):
         LIST_DATA.sort(key=get_datetime, reverse=True)
         self.update_table_with_leaf_data(LIST_DATA)
 
+    ############################################################################
     def handle_tree_double_click(self, index):
         self.status.showMessage("Searching for feeds",5000)
         self.table_view.setEnabled(False)
@@ -326,6 +336,7 @@ class MainWindow(QMainWindow):
         self.table_view.setEnabled(True)
         self.status.showMessage("")
 
+    ############################################################################
     def _create_statusbar(self):
         self.status = QStatusBar()
         self.setStatusBar(self.status)
@@ -335,7 +346,7 @@ class MainWindow(QMainWindow):
         self.progress.setValue(0)
         self.status.addPermanentWidget(self.progress)
 
-
+    ############################################################################
     def open_tree_context_menu(self, position: QPoint):
         index = self.tree_view.indexAt(position)
         selected_item = self.tree_model.itemFromIndex(index) if index.isValid() else None
@@ -343,28 +354,25 @@ class MainWindow(QMainWindow):
         if selected_item is None: # nao selecionou nada
             return
 
+        #print("")
+        #print("rowCount:",selected_item.rowCount())
+
         menu = QMenu()
         
-        add_node_action = None
-        add_leaf_action = None
-        if selected_item.data() is None:
+        add_node_action    = None
+        add_leaf_action    = None
+        rename_node_action = None
+        rss_url_action     = None
+        if selected_item.data() is None: # Es nodo
             add_node_action = menu.addAction(QIcon.fromTheme("document-new"),"Add new node")
             add_leaf_action = menu.addAction(QIcon.fromTheme("document-new"),"Add new lead (with URL)")
-        
-        model = self.tree_view.model()
-        
-        print("")
-        print("data:",selected_item.data())
-        print("rowCount:",selected_item.rowCount())
-        
-        rename_node_action = None
-        if selected_item.data() is None: # É um nó
             rename_node_action = menu.addAction(QIcon.fromTheme("document-edit"),"Rename")
-        
-       
+        else: # is folha
+            rss_url_action = menu.addAction(QIcon.fromTheme("insert-link"),"Copy RSS URL")
         
         menu.addSeparator()
-        remove_action = menu.addAction(QIcon.fromTheme("edit-clear"),"Remove")  # Apenas uma opção de remoção
+        
+        remove_action = menu.addAction(QIcon.fromTheme("edit-clear"),"Remove")  
 
         action = menu.exec_(self.tree_view.viewport().mapToGlobal(position))
 
@@ -382,6 +390,13 @@ class MainWindow(QMainWindow):
                     self.tree_model.appendRow(new_item)
                 self.save_tree_structure()
 
+        elif action == rss_url_action: 
+            #print("data:",selected_item.data())
+            
+            clipboard = QApplication.clipboard()
+            clipboard.setText(selected_item.data().get("url"))
+            return
+        
         elif action == add_leaf_action:
             url, ok2 = QInputDialog.getText(self, "URL", "Enter the URL:")
             url = parse_url(url)
@@ -417,7 +432,7 @@ class MainWindow(QMainWindow):
                 self.save_tree_structure()
 
         elif action == rename_node_action:
-            if selected_item:  # É um nodo
+            if selected_item: 
                 novo_nome, ok = QInputDialog.getText(self, 
                                                     "Rename Nodo", 
                                                     "New name:", 
@@ -437,7 +452,7 @@ class MainWindow(QMainWindow):
                 self.save_tree_structure()
 
         
-
+    ############################################################################
     def show_about(self):
         #QMessageBox.information(self, "Sobre", "Exemplo criado com PyQt5.\n(c) Fernando")
         
@@ -457,13 +472,16 @@ class MainWindow(QMainWindow):
         logo_path = os.path.join(base_dir_path, 'icons', 'logo.png')
         
         show_about_window(data,logo_path)
-        
+    
+    ############################################################################  
     def on_summarize_action_click(self):
         summarize_news(self, config_data, LIST_DATA)
-        
+    
+    ############################################################################
     def show_help(self):
         QDesktopServices.openUrl(QUrl("https://github.com/trucomanx/SmartNewsOrganizer/tree/main/doc"))
-        
+     
+    ############################################################################   
     def save_tree_structure(self):
         # SERIALIZAÇÃO DO TREEVIEW
         def serialize_item(item):
@@ -480,6 +498,7 @@ class MainWindow(QMainWindow):
         with open(tree_file_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
+    ############################################################################
     def load_tree_structure(self):
         import os
         if not os.path.exists(tree_file_path):
