@@ -352,8 +352,13 @@ class MainWindow(QMainWindow):
             add_leaf_action = menu.addAction(QIcon.fromTheme("document-new"),"Add new lead (with URL)")
         
         model = self.tree_view.model()
+        
+        print("")
+        print("data:",selected_item.data())
+        print("rowCount:",selected_item.rowCount())
+        
         rename_node_action = None
-        if model.hasChildren(index): # É um nó
+        if selected_item.data() is None: # É um nó
             rename_node_action = menu.addAction(QIcon.fromTheme("document-edit"),"Rename")
         
        
@@ -412,7 +417,7 @@ class MainWindow(QMainWindow):
                 self.save_tree_structure()
 
         elif action == rename_node_action:
-            if selected_item and selected_item.rowCount() > 0:  # É um nodo
+            if selected_item:  # É um nodo
                 novo_nome, ok = QInputDialog.getText(self, 
                                                     "Rename Nodo", 
                                                     "New name:", 
@@ -503,7 +508,7 @@ class MainWindow(QMainWindow):
 def main():
     signal.signal(signal.SIGINT, signal.SIG_DFL)
     app = QApplication(sys.argv)
-    app.setApplicationName("smart_news_organizer") # xprop WM_CLASS # *.desktop -> StartupWMClass
+    app.setApplicationName(about.__package__) # xprop WM_CLASS # *.desktop -> StartupWMClass
     window = MainWindow()
     window.resize(1200, 800)
     window.show()
