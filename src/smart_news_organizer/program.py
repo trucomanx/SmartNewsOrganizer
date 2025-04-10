@@ -172,7 +172,7 @@ class MainWindow(QMainWindow):
 
         # Cria o botão com menu find-down
         find_button = QToolButton()
-        find_button.setText("Find topic")
+        find_button.setText("Find")
         find_button.setToolTip("Find feeds related to a topic")
         find_button.setIcon(QIcon.fromTheme("edit-find"))
         find_button.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
@@ -190,16 +190,38 @@ class MainWindow(QMainWindow):
         find_button.setMenu(menu)
         find_button.setEnabled(False)
         
+        
+        # Cria o botão com menu podcast-down
+        podcast_button = QToolButton()
+        podcast_button.setText("Podcast")
+        podcast_button.setToolTip("Generate a podcast from feeds")
+        podcast_button.setIcon(QIcon.fromTheme("audio-volume-high"))
+        podcast_button.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        #podcast_button.setPopupMode(QToolButton.MenuButtonPopup)  
+        podcast_button.setPopupMode(QToolButton.InstantPopup)
+        # Cria o menu
+        menu = QMenu()
+        podcast_action1 = QAction("In last 24h", self)
+        podcast_action2 = QAction("In last week", self)
+        podcast_action3 = QAction("In all", self)
+        menu.addAction(podcast_action1)
+        menu.addAction(podcast_action2)
+        menu.addAction(podcast_action3)
+        # Add menu
+        podcast_button.setMenu(menu)
+        podcast_button.setEnabled(False)
+        
 
         toolbar.addAction(coffee_action)
         toolbar.addAction(about_action)
         toolbar.addAction(help_action)
         toolbar.addAction(config_action)
         toolbar.addAction(usage_action)
-        #toolbar.addSeparator() # Separator
+        toolbar.addSeparator() # Separator
         toolbar.addWidget(getExpandedSeparator())
         toolbar.addWidget(summarize_button)
-        toolbar.addWidget(find_button)        
+        toolbar.addWidget(find_button)
+        toolbar.addWidget(podcast_button)
 
     ############################################################################
     def _create_central_widget(self):
