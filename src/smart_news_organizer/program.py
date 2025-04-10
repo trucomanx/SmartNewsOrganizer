@@ -363,9 +363,9 @@ class MainWindow(QMainWindow):
         self.progress.setRange(0,L)
         for i, data in enumerate(list_data):
             id_item = QStandardItem(str(i))
-            title_item = QStandardItem(data.title)
-            data_item = QStandardItem(normalizar_data(data.published)) 
-            author_item = QStandardItem(data.author)
+            title_item = QStandardItem(data.get("title","Unknown title"))
+            data_item = QStandardItem(normalizar_data(data.get("published","Unknown published"))) 
+            author_item = QStandardItem(data.get("author", "Unknown author"))
             self.table_model.appendRow([id_item, title_item, data_item, author_item])
             self.progress.setValue(i+1)
         self.progress.setValue(0)
