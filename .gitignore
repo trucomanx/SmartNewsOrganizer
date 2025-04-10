@@ -1,3 +1,5 @@
 /src/smart_news_organizer/modules/__pycache__
 /src/smart_news_organizer/__pycache__/
 /src/pyproject.toml
+/src/dist/
+/src/smart_news_organizer.egg-info
