@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (
     QVBoxLayout, QWidget, QMenu, QInputDialog, QLineEdit, QMessageBox, QHeaderView
 )
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QFont, QDesktopServices, QIcon
-from PyQt5.QtCore import Qt, QPoint, QUrl, pyqtSignal, QModelIndex
+from PyQt5.QtCore import Qt, QPoint, QUrl, pyqtSignal, QModelIndex, QTimer
 
 import feedparser
 
@@ -65,6 +65,37 @@ class MyTableView(QTableView):
             elif event.button() == Qt.RightButton:
                 self.doubleRightClicked.emit(index)
         super().mouseDoubleClickEvent(event)
+
+class TreeModel(QStandardItemModel):
+    def __init__(self, save_callback=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.save_callback = save_callback
+
+    def supportedDragActions(self):
+        return Qt.MoveAction  # ou Qt.CopyAction | Qt.MoveAction
+
+    def dropMimeData(self, data, action, row, column, parent_index):
+        parent_item = self.itemFromIndex(parent_index)
+        if parent_item and parent_item.data() is not None:
+            return False
+        return super().dropMimeData(data, action, row, column, parent_index)
+
+    def setData(self, index, value, role):
+        result = super().setData(index, value, role)
+        if role == Qt.EditRole and self.save_callback:
+            self.save_callback()
+        return result
+
+
+class TreeView(QTreeView):
+    def __init__(self, parent=None, save_callback=None):
+        super().__init__(parent)
+        self.save_callback = save_callback
+
+    def dropEvent(self, event):
+        super().dropEvent(event)
+        QTimer.singleShot(0, self.save_callback)
+
 
 class MainWindow(QMainWindow):
     ############################################################################
@@ -132,13 +163,21 @@ class MainWindow(QMainWindow):
         main_splitter = QSplitter(Qt.Horizontal)
 
         # Tree View (Left)
-        self.tree_view = QTreeView()
-        self.tree_model = QStandardItemModel()
+        self.tree_view = TreeView(save_callback=self.save_tree_structure)
+        self.tree_model = TreeModel(save_callback=self.save_tree_structure)
         self.tree_model.setHorizontalHeaderLabels(["Nodes"])
+
+        
         self.tree_view.setModel(self.tree_model)
         self.tree_view.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tree_view.customContextMenuRequested.connect(self.open_tree_context_menu)
         self.tree_view.doubleClicked.connect(self.handle_tree_double_click)
+        
+        self.tree_view.setDragEnabled(True)
+        self.tree_view.setAcceptDrops(True)
+        self.tree_view.setDropIndicatorShown(True)
+        self.tree_view.setDefaultDropAction(Qt.MoveAction)  # ou Qt.CopyAction
+
         
         main_splitter.addWidget(self.tree_view)
 
@@ -511,9 +550,11 @@ class MainWindow(QMainWindow):
             item.setData(data.get('user_data'))
             if data.get('user_data',None) is None:
                 item.setIcon(QIcon.fromTheme("folder"))
+                item.setEditable(True)
             else:
                 item.setIcon(QIcon.fromTheme("application-rss+xml"))
-             
+                item.setEditable(False)
+
             for child_data in data['children']:
                 item.appendRow(deserialize_item(child_data))
             return item
