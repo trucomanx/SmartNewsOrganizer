@@ -1,7 +1,7 @@
 from deep_consultation.core import consult_with_deepchat
 import json
 from PyQt5.QtWidgets import QMessageBox
-
+from smart_news_organizer.modules.wmessage import show_message
 
 def summarize_news(parent, config_data, list_data):
     #for data in list_data:
@@ -39,4 +39,5 @@ If the input list is empty or contains only empty strings, respond with: "No new
                                 config_data["model"],
                                 titles_str,
                                 system_msg)
-    QMessageBox.warning(parent, "Response",res)
+    show_message(res, width=800, height=600, parent = parent)
+    #QMessageBox.warning(parent, "Response",res)

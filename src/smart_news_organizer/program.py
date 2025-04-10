@@ -4,7 +4,7 @@ import json
 import os
 import feedparser
 from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QToolBar, QAction, QSplitter,
+    QApplication, QMainWindow, QToolBar, QAction, QSplitter, QToolButton, QSizePolicy, 
     QTreeView, QTableView, QTextEdit, QProgressBar, QStatusBar, QTextBrowser, 
     QVBoxLayout, QWidget, QMenu, QInputDialog, QLineEdit, QMessageBox, QHeaderView
 )
@@ -13,12 +13,12 @@ from PyQt5.QtCore import Qt, QPoint, QUrl, pyqtSignal, QModelIndex, QTimer
 
 import feedparser
 
-from smart_news_organizer.modules.feed    import parse_url
-from smart_news_organizer.modules.dates   import normalizar_data, get_datetime
-from smart_news_organizer.modules.files   import detect_formats
-from smart_news_organizer.modules.data    import SYSTEM_DATA
-from smart_news_organizer.modules.wabout  import show_about_window
-from smart_news_organizer.modules.consult import summarize_news
+from smart_news_organizer.modules.feed     import parse_url
+from smart_news_organizer.modules.dates    import normalizar_data, get_datetime
+from smart_news_organizer.modules.files    import detect_formats
+from smart_news_organizer.modules.data     import SYSTEM_DATA
+from smart_news_organizer.modules.wabout   import show_about_window
+from smart_news_organizer.modules.consult  import summarize_news
 import smart_news_organizer.about as about
 
 CONFIG_FILE = "~/.config/smart_news_organizer/config_data.json"
@@ -45,7 +45,7 @@ except json.JSONDecodeError:
     sys.exit()
 
 print("config_file_path:",config_file_path)
-print(json.dumps(config_data, indent=4, ensure_ascii=False))
+#print(json.dumps(config_data, indent=4, ensure_ascii=False))
 
 
 TREE_FILE = "~/.config/smart_news_organizer/tree_data.json"
@@ -96,6 +96,10 @@ class TreeView(QTreeView):
         super().dropEvent(event)
         QTimer.singleShot(0, self.save_callback)
 
+def getExpandedSeparator():
+    spacer = QWidget()
+    spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+    return spacer
 
 class MainWindow(QMainWindow):
     ############################################################################
@@ -124,39 +128,78 @@ class MainWindow(QMainWindow):
         self.addToolBar(toolbar)
         toolbar.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
 
+        # Coffee
         coffee_action = QAction(QIcon.fromTheme("emblem-favorite"),"Coffee", self)
-        about_action = QAction(QIcon.fromTheme("help-about"),"About", self)
-        help_action = QAction(QIcon.fromTheme("x-office-address-book"),"Help", self)
-        config_action = QAction(QIcon.fromTheme("document-properties"),"Configure", self)
-        usage_action = QAction(QIcon.fromTheme("emblem-web"),"Usage", self)
-        summarize_action = QAction(QIcon.fromTheme("format-text-strikethrough"),"Summarize", self)
-
-        
         coffee_action.setToolTip("Buy me a coffee (TrucomanX)")
-        about_action.setToolTip("About the program")
-        help_action.setToolTip("Help information of the program")
-        config_action.setToolTip("Configure program variables")
-        usage_action.setToolTip("Open url with AI usage information")
-        summarize_action.setToolTip("Summarize the news")
-
-
         coffee_action.triggered.connect(self.on_coffee_action_click)
+        
+        # About
+        about_action = QAction(QIcon.fromTheme("help-about"),"About", self)
+        about_action.setToolTip("About the program")
         about_action.triggered.connect(self.show_about)
+        
+        # Help
+        help_action = QAction(QIcon.fromTheme("x-office-address-book"),"Help", self)
+        help_action.setToolTip("Help information of the program")
         help_action.triggered.connect(self.show_help)
+        
+        # Config
+        config_action = QAction(QIcon.fromTheme("document-properties"),"Configure", self)
+        config_action.setToolTip("Configure program variables")
         config_action.triggered.connect(self.on_config_action_click)
+        
+        # Usage
+        usage_action = QAction(QIcon.fromTheme("emblem-web"),"Usage", self)
+        usage_action.setToolTip("Open url with AI usage information")
         usage_action.triggered.connect(self.on_usage_action_click)
-        summarize_action.triggered.connect(self.on_summarize_action_click)
 
+        # Cria o botão com menu summarize-down
+        summarize_button = QToolButton()
+        summarize_button.setText("Summarize")
+        summarize_button.setToolTip("Summarize title of feeds")
+        summarize_button.setIcon(QIcon.fromTheme("format-text-strikethrough"))
+        summarize_button.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        #summarize_button.setPopupMode(QToolButton.MenuButtonPopup)  
+        summarize_button.setPopupMode(QToolButton.InstantPopup)
+        # Cria o menu
+        menu = QMenu()
+        summarize_action3 = QAction("In all", self)
+        summarize_action3.triggered.connect(self.on_summarize_all_action_click)
+        menu.addAction(summarize_action3)
+        # Add menu
+        summarize_button.setMenu(menu)
+
+
+        # Cria o botão com menu find-down
+        find_button = QToolButton()
+        find_button.setText("Find topic")
+        find_button.setToolTip("Find feeds related to a topic")
+        find_button.setIcon(QIcon.fromTheme("edit-find"))
+        find_button.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        #find_button.setPopupMode(QToolButton.MenuButtonPopup)  
+        find_button.setPopupMode(QToolButton.InstantPopup)
+        # Cria o menu
+        menu = QMenu()
+        find_action1 = QAction("In last 24h", self)
+        find_action2 = QAction("In last week", self)
+        find_action3 = QAction("In all", self)
+        menu.addAction(find_action1)
+        menu.addAction(find_action2)
+        menu.addAction(find_action3)
+        # Add menu
+        find_button.setMenu(menu)
+        find_button.setEnabled(False)
+        
 
         toolbar.addAction(coffee_action)
         toolbar.addAction(about_action)
         toolbar.addAction(help_action)
         toolbar.addAction(config_action)
         toolbar.addAction(usage_action)
-        
-        toolbar.addSeparator()
-        
-        toolbar.addAction(summarize_action)
+        #toolbar.addSeparator() # Separator
+        toolbar.addWidget(getExpandedSeparator())
+        toolbar.addWidget(summarize_button)
+        toolbar.addWidget(find_button)        
 
     ############################################################################
     def _create_central_widget(self):
@@ -165,7 +208,7 @@ class MainWindow(QMainWindow):
         # Tree View (Left)
         self.tree_view = TreeView(save_callback=self.save_tree_structure)
         self.tree_model = TreeModel(save_callback=self.save_tree_structure)
-        self.tree_model.setHorizontalHeaderLabels(["Nodes"])
+        self.tree_model.setHorizontalHeaderLabels(["RSS tree"])
 
         
         self.tree_view.setModel(self.tree_model)
@@ -513,7 +556,7 @@ class MainWindow(QMainWindow):
         show_about_window(data,logo_path)
     
     ############################################################################  
-    def on_summarize_action_click(self):
+    def on_summarize_all_action_click(self):
         summarize_news(self, config_data, LIST_DATA)
     
     ############################################################################
