@@ -11,14 +11,13 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QFont, QDesktopServices, QIcon
 from PyQt5.QtCore import Qt, QPoint, QUrl, pyqtSignal, QModelIndex, QTimer
 
-import feedparser
-
 from smart_news_organizer.modules.feed     import parse_url
-from smart_news_organizer.modules.dates    import normalizar_data, get_datetime
+from smart_news_organizer.modules.dates    import normalizar_data, get_datetime, is_less_than
 from smart_news_organizer.modules.files    import detect_formats
 from smart_news_organizer.modules.data     import SYSTEM_DATA
 from smart_news_organizer.modules.wabout   import show_about_window
 from smart_news_organizer.modules.consult  import summarize_news
+from smart_news_organizer.desktop import create_desktop_file
 import smart_news_organizer.about as about
 
 CONFIG_FILE = "~/.config/smart_news_organizer/config_data.json"
@@ -163,6 +162,12 @@ class MainWindow(QMainWindow):
         summarize_button.setPopupMode(QToolButton.InstantPopup)
         # Cria o menu
         menu = QMenu()
+        summarize_action1 = QAction("In last 24h", self)
+        summarize_action1.triggered.connect(self.on_summarize_24h_action_click)
+        menu.addAction(summarize_action1)
+        summarize_action1 = QAction("In last week", self)
+        summarize_action1.triggered.connect(self.on_summarize_1w_action_click)
+        menu.addAction(summarize_action1)
         summarize_action3 = QAction("In all", self)
         summarize_action3.triggered.connect(self.on_summarize_all_action_click)
         menu.addAction(summarize_action3)
@@ -386,7 +391,10 @@ class MainWindow(QMainWindow):
         for i, data in enumerate(list_data):
             id_item = QStandardItem(str(i))
             title_item = QStandardItem(data.get("title","Unknown title"))
-            data_item = QStandardItem(normalizar_data(data.get("published","Unknown published"))) 
+            if "published" in data:
+                data_item = QStandardItem(normalizar_data(data.get("published","Unknown published"))) 
+            else:
+                data_item = QStandardItem(normalizar_data(data.get("updated","Unknown published"))) 
             author_item = QStandardItem(data.get("author", "Unknown author"))
             self.table_model.appendRow([id_item, title_item, data_item, author_item])
             self.progress.setValue(i+1)
@@ -576,7 +584,27 @@ class MainWindow(QMainWindow):
         logo_path = os.path.join(base_dir_path, 'icons', 'logo.png')
         
         show_about_window(data,logo_path)
+
+    ############################################################################      
+    def filter_list_data(self,complete_list_data,horas):
+        list_data=[]
+        for data in complete_list_data:
+            if is_less_than(data,horas):
+                list_data.append(data)
+                #print(data.get('published_parsed'))
+        return list_data
+        
+    ############################################################################      
+    def on_summarize_24h_action_click(self):
+        list_data = self.filter_list_data(LIST_DATA,24)
+        summarize_news(self, config_data, list_data)
+
+    ############################################################################      
+    def on_summarize_1w_action_click(self):
+        list_data = self.filter_list_data(LIST_DATA,24*7)
+        summarize_news(self, config_data, list_data)
     
+
     ############################################################################  
     def on_summarize_all_action_click(self):
         summarize_news(self, config_data, LIST_DATA)
@@ -632,6 +660,17 @@ class MainWindow(QMainWindow):
 
 def main():
     signal.signal(signal.SIGINT, signal.SIG_DFL)
+    
+    create_desktop_file('~/.local/share/applications')
+    
+    for n in range(len(sys.argv)):
+        if sys.argv[n] == "--autostart":
+            create_desktop_file('~/.config/autostart', overwrite=True)
+            return
+        if sys.argv[n] == "--applications":
+            create_desktop_file('~/.local/share/applications', overwrite=True)
+            return
+    
     app = QApplication(sys.argv)
     app.setApplicationName(about.__package__) # xprop WM_CLASS # *.desktop -> StartupWMClass
     window = MainWindow()
