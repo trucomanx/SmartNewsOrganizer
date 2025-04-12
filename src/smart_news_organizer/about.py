@@ -1,6 +1,6 @@
 # about.py
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 __package__ = "smart_news_organizer"
 __program_name__ = "smart-news-organizer"
 __author__ = "Fernando Pujaico Rivera" 

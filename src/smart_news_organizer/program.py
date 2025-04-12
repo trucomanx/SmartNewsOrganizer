@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (
     QVBoxLayout, QWidget, QMenu, QInputDialog, QLineEdit, QMessageBox, QHeaderView
 )
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QFont, QDesktopServices, QIcon
-from PyQt5.QtCore import Qt, QPoint, QUrl, pyqtSignal, QModelIndex, QTimer
+from PyQt5.QtCore import Qt, QPoint, QUrl, pyqtSignal, QModelIndex, QTimer, QThread
 
 from smart_news_organizer.modules.feed     import parse_url
 from smart_news_organizer.modules.dates    import normalizar_data, get_datetime, is_less_than
@@ -17,40 +17,62 @@ from smart_news_organizer.modules.files    import detect_formats
 from smart_news_organizer.modules.data     import SYSTEM_DATA
 from smart_news_organizer.modules.wabout   import show_about_window
 from smart_news_organizer.modules.consult  import summarize_news
+from smart_news_organizer.modules.wmessage import show_message
 from smart_news_organizer.desktop import create_desktop_file
 import smart_news_organizer.about as about
 
 CONFIG_FILE = "~/.config/smart_news_organizer/config_data.json"
-config_data = SYSTEM_DATA.copy()
+
 config_file_path = os.path.expanduser(CONFIG_FILE)
 
-try:
-    if not os.path.exists(config_file_path):
-        os.makedirs(os.path.dirname(config_file_path), exist_ok=True)
-        
-        with open(config_file_path, "w", encoding="utf-8") as arquivo:
-            json.dump(config_data, arquivo, indent=4)
-        print(f"File created in: {config_file_path}")
-        
-    with open(config_file_path, "r") as arquivo:
-        config_data = json.load(arquivo)
-    
-except FileNotFoundError:
-    print(f"Error: The file '{config_file_path}' was not found.")
-    sys.exit()
-    
-except json.JSONDecodeError:
-    print(f"Error: The file '{config_file_path}' dont have a valid JSON.")
-    sys.exit()
+def load_config_data(config_file_path):
+    config_data = SYSTEM_DATA.copy()
+    try:
+        if not os.path.exists(config_file_path):
+            os.makedirs(os.path.dirname(config_file_path), exist_ok=True)
+            
+            with open(config_file_path, "w", encoding="utf-8") as arquivo:
+                json.dump(config_data, arquivo, indent=4)
+            print(f"File created in: {config_file_path}")
+            
+        with open(config_file_path, "r") as arquivo:
+            config_data = json.load(arquivo)
 
-print("config_file_path:",config_file_path)
-#print(json.dumps(config_data, indent=4, ensure_ascii=False))
+        #print("config_file_path:",config_file_path)
+        #print(json.dumps(config_data, indent=4, ensure_ascii=False))        
+        return config_data
+        
+    except FileNotFoundError:
+        print(f"Error: The file '{config_file_path}' was not found.")
+        return config_data
+        
+    except json.JSONDecodeError:
+        print(f"Error: The file '{config_file_path}' dont have a valid JSON.")
+        return config_data
+
+
+    return config_data
+
+config_data = load_config_data(config_file_path)
 
 
 TREE_FILE = "~/.config/smart_news_organizer/tree_data.json"
 tree_file_path = os.path.expanduser(TREE_FILE)
 
 LIST_DATA = []
+
+
+# Thread que vai rodar a função lenta
+class WorkerSummarizeThread(QThread):
+    def __init__(self,config_data, list_data):
+        super().__init__() 
+        self.config_data = config_data 
+        self.list_data = list_data
+        self.output = ""
+        
+    def run(self):
+        self.output = summarize_news(self.config_data, self.list_data)
+        
 
 class MyTableView(QTableView):
     doubleLeftClicked = pyqtSignal(QModelIndex)
@@ -133,7 +155,13 @@ class MainWindow(QMainWindow):
         if self.rodando:
             pontos = '.' * (self.contador % 32)
             self.status.showMessage(f"Working{pontos}")
+            
+            if self.contador % 2 == 0:
+                self.progress.setValue(self.progress.maximum())
+            else:
+                self.progress.setValue(0)
             self.contador += 1
+            
 
     ############################################################################
     def _create_toolbar(self):
@@ -157,8 +185,8 @@ class MainWindow(QMainWindow):
         help_action.triggered.connect(self.show_help)
         
         # Config
-        config_action = QAction(QIcon.fromTheme("document-properties"),"Configure", self)
-        config_action.setToolTip("Configure program variables")
+        config_action = QAction(QIcon.fromTheme("document-properties"),"Configure AI", self)
+        config_action.setToolTip("Configure variables of Artificial Inteligence.")
         config_action.triggered.connect(self.on_config_action_click)
         
         # Usage
@@ -167,13 +195,13 @@ class MainWindow(QMainWindow):
         usage_action.triggered.connect(self.on_usage_action_click)
 
         # Cria o botão com menu summarize-down
-        summarize_button = QToolButton()
-        summarize_button.setText("Summarize")
-        summarize_button.setToolTip("Summarize title of feeds")
-        summarize_button.setIcon(QIcon.fromTheme("format-text-strikethrough"))
-        summarize_button.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
-        #summarize_button.setPopupMode(QToolButton.MenuButtonPopup)  
-        summarize_button.setPopupMode(QToolButton.InstantPopup)
+        self.summarize_button = QToolButton()
+        self.summarize_button.setText("Summarize")
+        self.summarize_button.setToolTip("Summarize title of feeds")
+        self.summarize_button.setIcon(QIcon.fromTheme("format-text-strikethrough"))
+        self.summarize_button.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        #self.summarize_button.setPopupMode(QToolButton.MenuButtonPopup)  
+        self.summarize_button.setPopupMode(QToolButton.InstantPopup)
         # Cria o menu
         menu = QMenu()
         summarize_action1 = QAction("In last 24h", self)
@@ -186,7 +214,7 @@ class MainWindow(QMainWindow):
         summarize_action3.triggered.connect(lambda: self.on_summarize_nh_action_click(0))
         menu.addAction(summarize_action3)
         # Add menu
-        summarize_button.setMenu(menu)
+        self.summarize_button.setMenu(menu)
 
 
         # Cria o botão com menu find-down
@@ -238,7 +266,7 @@ class MainWindow(QMainWindow):
         toolbar.addAction(usage_action)
         toolbar.addSeparator() # Separator
         toolbar.addWidget(getExpandedSeparator())
-        toolbar.addWidget(summarize_button)
+        toolbar.addWidget(self.summarize_button)
         toolbar.addWidget(find_button)
         toolbar.addWidget(podcast_button)
 
@@ -313,6 +341,7 @@ class MainWindow(QMainWindow):
 
     ############################################################################
     def on_config_action_click(self):
+        config_data = load_config_data(config_file_path)
         QDesktopServices.openUrl(QUrl.fromLocalFile(config_file_path))
         
     ############################################################################
@@ -611,17 +640,40 @@ class MainWindow(QMainWindow):
         
     ############################################################################      
     def on_summarize_nh_action_click(self, nh = 0):
+        config_data = load_config_data(config_file_path)
+        
+        if config_data["api_key"] == "":
+            self.on_config_action_click()
+            return
+    
         list_data = []
         if nh >0:
             list_data = self.filter_list_data(LIST_DATA,nh)
         else:
             list_data = LIST_DATA
         
-        self.rodando = True
-        summarize_news(self, config_data, list_data)
+        if len(list_data) == 0:
+            QMessageBox.warning(self, 
+                                "Void list", 
+                                "The list is void please select a node in the left tree view.")
+            return
+            
+        self.rodando = True       
+        self.status.showMessage("Working")
+        self.thread_summ = WorkerSummarizeThread(config_data, list_data)
+        self.thread_summ.finished.connect(self.func_summarize_end)
+        self.thread_summ.start()
+        self.summarize_button.setEnabled(False)
+
+
+    def func_summarize_end(self):
         self.rodando = False
         self.contador = 0
-    
+        self.status.showMessage("Ended!", 3000)  # Mostra por 3 segundos
+        self.progress.setValue(0)
+        show_message(self.thread_summ.output, width=800, height=600, parent = self)
+        self.summarize_button.setEnabled(True)
+                    
     ############################################################################
     def show_help(self):
         QDesktopServices.openUrl(QUrl("https://github.com/trucomanx/SmartNewsOrganizer/tree/main/doc"))
