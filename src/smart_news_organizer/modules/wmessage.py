@@ -38,6 +38,6 @@ class MessageDialog(QDialog):
         clipboard = QApplication.clipboard()
         clipboard.setText(self.text_edit.toPlainText())
 
-def show_message(message, width=600, height=300, parent = None):
-    dialog = MessageDialog(message, width, height, parent = parent)
+def show_message(message, width=600, height=300, parent = None, title=""):
+    dialog = MessageDialog(message, width, height, parent = parent, title = title)
     dialog.exec_()

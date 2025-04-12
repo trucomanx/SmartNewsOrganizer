@@ -555,6 +555,11 @@ class MainWindow(QMainWindow):
         elif action == add_leaf_action:
             url, ok2 = QInputDialog.getText(self, "URL", "Enter the URL:")
             url = parse_url(url)
+            
+            if url is None:
+                QMessageBox.warning(self, "Feed error", "The URL is no valid feed.")
+                return 
+
 
             if ok2 and url is not None:
                 # Verifica se a URL já existe entre os filhos do nodo selecionado
