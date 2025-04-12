@@ -120,6 +120,20 @@ class MainWindow(QMainWindow):
         self._create_statusbar()
 
         self.load_tree_structure()
+        
+        # Timer para mostrar "atividade"
+        self.contador = 0
+        self.timer = self.startTimer(500)  # Atualiza a cada 500ms
+        self.rodando = False
+
+
+    ############################################################################
+    def timerEvent(self, event):
+        # Só mostra algo girando na barra de status
+        if self.rodando:
+            pontos = '.' * (self.contador % 32)
+            self.status.showMessage(f"Working{pontos}")
+            self.contador += 1
 
     ############################################################################
     def _create_toolbar(self):
@@ -163,13 +177,13 @@ class MainWindow(QMainWindow):
         # Cria o menu
         menu = QMenu()
         summarize_action1 = QAction("In last 24h", self)
-        summarize_action1.triggered.connect(self.on_summarize_24h_action_click)
+        summarize_action1.triggered.connect(lambda: self.on_summarize_nh_action_click(24))
         menu.addAction(summarize_action1)
         summarize_action1 = QAction("In last week", self)
-        summarize_action1.triggered.connect(self.on_summarize_1w_action_click)
+        summarize_action1.triggered.connect(lambda: self.on_summarize_nh_action_click(24*7))
         menu.addAction(summarize_action1)
         summarize_action3 = QAction("In all", self)
-        summarize_action3.triggered.connect(self.on_summarize_all_action_click)
+        summarize_action3.triggered.connect(lambda: self.on_summarize_nh_action_click(0))
         menu.addAction(summarize_action3)
         # Add menu
         summarize_button.setMenu(menu)
@@ -594,20 +608,19 @@ class MainWindow(QMainWindow):
                 #print(data.get('published_parsed'))
         return list_data
         
+        
     ############################################################################      
-    def on_summarize_24h_action_click(self):
-        list_data = self.filter_list_data(LIST_DATA,24)
+    def on_summarize_nh_action_click(self, nh = 0):
+        list_data = []
+        if nh >0:
+            list_data = self.filter_list_data(LIST_DATA,nh)
+        else:
+            list_data = LIST_DATA
+        
+        self.rodando = True
         summarize_news(self, config_data, list_data)
-
-    ############################################################################      
-    def on_summarize_1w_action_click(self):
-        list_data = self.filter_list_data(LIST_DATA,24*7)
-        summarize_news(self, config_data, list_data)
-    
-
-    ############################################################################  
-    def on_summarize_all_action_click(self):
-        summarize_news(self, config_data, LIST_DATA)
+        self.rodando = False
+        self.contador = 0
     
     ############################################################################
     def show_help(self):
