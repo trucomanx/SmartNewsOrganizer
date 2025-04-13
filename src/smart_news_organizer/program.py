@@ -18,7 +18,7 @@ from smart_news_organizer.modules.data     import SYSTEM_DATA
 from smart_news_organizer.modules.wabout   import show_about_window
 from smart_news_organizer.modules.consult  import summarize_news
 from smart_news_organizer.modules.wmessage import show_message
-from smart_news_organizer.desktop import create_desktop_file
+from smart_news_organizer.desktop import create_desktop_file, create_desktop_directory, create_desktop_menu
 import smart_news_organizer.about as about
 
 CONFIG_FILE = "~/.config/smart_news_organizer/config_data.json"
@@ -731,13 +731,19 @@ class MainWindow(QMainWindow):
 def main():
     signal.signal(signal.SIGINT, signal.SIG_DFL)
     
+    create_desktop_directory()    
+    create_desktop_menu()
     create_desktop_file('~/.local/share/applications')
     
     for n in range(len(sys.argv)):
         if sys.argv[n] == "--autostart":
+            create_desktop_directory(overwrite = True)
+            create_desktop_menu(overwrite = True)
             create_desktop_file('~/.config/autostart', overwrite=True)
             return
         if sys.argv[n] == "--applications":
+            create_desktop_directory(overwrite = True)
+            create_desktop_menu(overwrite = True)
             create_desktop_file('~/.local/share/applications', overwrite=True)
             return
     

@@ -30,7 +30,7 @@ Terminal=false
 Type=Application
 Icon={icon_path}
 StartupNotify=true
-Categories=Education;
+Categories=Education;ResearchTools;
 Keywords=organizer;python;
 Encoding=UTF-8
 StartupWMClass={about.__package__}
@@ -41,8 +41,54 @@ StartupWMClass={about.__package__}
         with open(path, "w") as f:
             f.write(desktop_entry)
         os.chmod(path, 0o755)
-        print(f"File {about.__program_name__}.desktop created in {path}")
+        print(f"File {about.__program_name__}.desktop created in {path}.")
         update_desktop_database(desktop_path)
     
+def create_desktop_directory(   directory_name = "ResearchTools",
+                                long_name = "Scientific research",
+                                comment = "Tools for Writing and Research Support",
+                                icon = "accessories-text-editor", 
+                                overwrite = False):
+    
+    desktop_entry = f"""[Desktop Entry]
+Version=1.0
+Type=Directory
+Name={long_name}
+Comment={comment}
+Icon={icon}
+"""
+    path = os.path.expanduser(f"~/.local/share/desktop-directories/{directory_name}.directory")
+    
+    if not os.path.exists(path) or overwrite == True:  # Evita sobrescrever
+        with open(path, "w") as f:
+            f.write(desktop_entry)
+        os.chmod(path, 0o755)
+        print(f"File {path} created.")
+    
+def create_desktop_menu(directory_name = "ResearchTools",
+                        basename = "research-tools",
+                        overwrite = False):
+    
+    desktop_entry = f"""<!-- ~/.config/menus/applications-merged/{basename}.menu -->
+<Menu>
+    <Name>Applications</Name>
+    <Menu>
+        <Name>{directory_name}</Name>
+        <Directory>{directory_name}.directory</Directory>
+        <Include>
+            <Category>{directory_name}</Category>
+        </Include>
+    </Menu>
+</Menu>
+"""
+    path = os.path.expanduser(f"~/.config/menus/applications-merged/{basename}.menu")
+    
+    if not os.path.exists(path) or overwrite == True:  # Evita sobrescrever
+        with open(path, "w") as f:
+            f.write(desktop_entry)
+        print(f"File {path} created.")
+
 if __name__ == '__main__':
+    create_desktop_directory()
     create_desktop_file()
+
