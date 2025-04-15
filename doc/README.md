@@ -1,4 +1,7 @@
 # Documentation
 
-Go to `Configure` to open the `~/config/smart_news_organizer/config.json` file. 
+* **User manual** is located in [user_manual.md](user_manual.md)
+* **Models and prices** is located in [models_and_prices.md](models_and_prices.md)
+
+
 
