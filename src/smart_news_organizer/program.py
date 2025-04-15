@@ -13,10 +13,10 @@ from PyQt5.QtCore import Qt, QPoint, QUrl, pyqtSignal, QModelIndex, QTimer, QThr
 
 from smart_news_organizer.modules.feed     import parse_url
 from smart_news_organizer.modules.dates    import normalizar_data, get_datetime, is_less_than
-from smart_news_organizer.modules.files    import detect_formats
+from smart_news_organizer.modules.files    import detect_formats, open_with_graphical_editor
 from smart_news_organizer.modules.data     import SYSTEM_DATA
 from smart_news_organizer.modules.wabout   import show_about_window
-from smart_news_organizer.modules.consult  import summarize_news
+from smart_news_organizer.modules.consult  import summarize_news, podcast_news
 from smart_news_organizer.modules.wmessage import show_message
 from smart_news_organizer.desktop import create_desktop_file, create_desktop_directory, create_desktop_menu
 import smart_news_organizer.about as about
@@ -72,7 +72,18 @@ class WorkerSummarizeThread(QThread):
         
     def run(self):
         self.output = summarize_news(self.config_data, self.list_data)
+
+
+# Thread que vai rodar a função lenta
+class WorkerPodcastThread(QThread):
+    def __init__(self,config_data, list_data):
+        super().__init__() 
+        self.config_data = config_data 
+        self.list_data = list_data
+        self.output = ""
         
+    def run(self):
+        self.output = podcast_news(self.config_data, self.list_data)
 
 class MyTableView(QTableView):
     doubleLeftClicked = pyqtSignal(QModelIndex)
@@ -196,8 +207,8 @@ class MainWindow(QMainWindow):
 
         # Cria o botão com menu summarize-down
         self.summarize_button = QToolButton()
-        self.summarize_button.setText("Summarize")
-        self.summarize_button.setToolTip("Summarize title of feeds")
+        self.summarize_button.setText("Summarize\ntitles")
+        self.summarize_button.setToolTip("Summarize feed titles")
         self.summarize_button.setIcon(QIcon.fromTheme("format-text-strikethrough"))
         self.summarize_button.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
         #self.summarize_button.setPopupMode(QToolButton.MenuButtonPopup)  
@@ -220,7 +231,7 @@ class MainWindow(QMainWindow):
         # Cria o botão com menu find-down
         find_button = QToolButton()
         find_button.setText("Find")
-        find_button.setToolTip("Find feeds related to a topic")
+        find_button.setToolTip("Find feeds with AI related to a topic")
         find_button.setIcon(QIcon.fromTheme("edit-find"))
         find_button.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
         #find_button.setPopupMode(QToolButton.MenuButtonPopup)  
@@ -239,24 +250,26 @@ class MainWindow(QMainWindow):
         
         
         # Cria o botão com menu podcast-down
-        podcast_button = QToolButton()
-        podcast_button.setText("Podcast")
-        podcast_button.setToolTip("Generate a podcast from feeds")
-        podcast_button.setIcon(QIcon.fromTheme("audio-volume-high"))
-        podcast_button.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
-        #podcast_button.setPopupMode(QToolButton.MenuButtonPopup)  
-        podcast_button.setPopupMode(QToolButton.InstantPopup)
+        self.podcast_button = QToolButton()
+        self.podcast_button.setText("Podcast\nscript")
+        self.podcast_button.setToolTip("Generate a podcast script from feed titles with AI")
+        self.podcast_button.setIcon(QIcon.fromTheme("audio-volume-high"))
+        self.podcast_button.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        #self.podcast_button.setPopupMode(QToolButton.MenuButtonPopup)  
+        self.podcast_button.setPopupMode(QToolButton.InstantPopup)
         # Cria o menu
         menu = QMenu()
         podcast_action1 = QAction("In last 24h", self)
-        podcast_action2 = QAction("In last week", self)
-        podcast_action3 = QAction("In all", self)
+        podcast_action1.triggered.connect(lambda: self.on_podcast_nh_action_click(24))
         menu.addAction(podcast_action1)
+        podcast_action2 = QAction("In last week", self)
+        podcast_action2.triggered.connect(lambda: self.on_podcast_nh_action_click(24*7))
         menu.addAction(podcast_action2)
+        podcast_action3 = QAction("In all", self)
+        podcast_action3.triggered.connect(lambda: self.on_podcast_nh_action_click(0))
         menu.addAction(podcast_action3)
         # Add menu
-        podcast_button.setMenu(menu)
-        podcast_button.setEnabled(False)
+        self.podcast_button.setMenu(menu)
         
 
         toolbar.addAction(coffee_action)
@@ -268,7 +281,7 @@ class MainWindow(QMainWindow):
         toolbar.addWidget(getExpandedSeparator())
         toolbar.addWidget(self.summarize_button)
         toolbar.addWidget(find_button)
-        toolbar.addWidget(podcast_button)
+        toolbar.addWidget(self.podcast_button)
 
     ############################################################################
     def _create_central_widget(self):
@@ -342,7 +355,9 @@ class MainWindow(QMainWindow):
     ############################################################################
     def on_config_action_click(self):
         config_data = load_config_data(config_file_path)
-        QDesktopServices.openUrl(QUrl.fromLocalFile(config_file_path))
+        
+        #QDesktopServices.openUrl(QUrl.fromLocalFile(config_file_path))
+        open_with_graphical_editor(config_file_path)
         
     ############################################################################
     def on_coffee_action_click(self):
@@ -678,7 +693,44 @@ class MainWindow(QMainWindow):
         self.progress.setValue(0)
         show_message(self.thread_summ.output, width=800, height=600, parent = self)
         self.summarize_button.setEnabled(True)
-                    
+          
+          
+    ############################################################################      
+    def on_podcast_nh_action_click(self, nh = 0):
+        config_data = load_config_data(config_file_path)
+        
+        if config_data["api_key"] == "":
+            self.on_config_action_click()
+            return
+    
+        list_data = []
+        if nh >0:
+            list_data = self.filter_list_data(LIST_DATA,nh)
+        else:
+            list_data = LIST_DATA
+        
+        if len(list_data) == 0:
+            QMessageBox.warning(self, 
+                                "Void list", 
+                                "The list is void please select a node in the left tree view.")
+            return
+            
+        self.rodando = True       
+        self.status.showMessage("Working")
+        self.thread_podcast = WorkerPodcastThread(config_data, list_data)
+        self.thread_podcast.finished.connect(self.func_podcast_end)
+        self.thread_podcast.start()
+        self.podcast_button.setEnabled(False)
+
+
+    def func_podcast_end(self):
+        self.rodando = False
+        self.contador = 0
+        self.status.showMessage("Ended!", 3000)  # Mostra por 3 segundos
+        self.progress.setValue(0)
+        show_message(self.thread_podcast.output, width=800, height=600, parent = self)
+        self.podcast_button.setEnabled(True)
+          
     ############################################################################
     def show_help(self):
         QDesktopServices.openUrl(QUrl("https://github.com/trucomanx/SmartNewsOrganizer/tree/main/doc"))

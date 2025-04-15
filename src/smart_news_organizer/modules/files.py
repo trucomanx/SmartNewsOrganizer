@@ -1,6 +1,26 @@
 #!/usr/bin/python3
 
 import re
+import subprocess
+import sys
+import shutil
+
+def open_with_graphical_editor(file_path):
+    if sys.platform.startswith('win'):
+        subprocess.Popen(['notepad', file_path])
+    
+    elif sys.platform.startswith('darwin'):
+        subprocess.Popen(['open', '-a', 'TextEdit', file_path])
+    
+    elif sys.platform.startswith('linux'):
+        # Tenta abrir com editores gráficos comuns
+        for editor in ['gedit', 'kate', 'mousepad', 'xed', 'leafpad', 'pluma', 'code']:  # 'code' é VS Code
+            if shutil.which(editor):
+                subprocess.Popen([editor, file_path])
+                break
+        else:
+            print("Nenhum editor gráfico encontrado.")
+
 
 def detect_formats(texto):
     """Retorna um dicionário com a probabilidade de o texto pertencer a cada formato"""
