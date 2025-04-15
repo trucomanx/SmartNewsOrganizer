@@ -18,8 +18,8 @@ def open_with_graphical_editor(file_path):
             if shutil.which(editor):
                 subprocess.Popen([editor, file_path])
                 break
-        else:
-            print("Nenhum editor gráfico encontrado.")
+    else:
+        print("Nenhum editor gráfico encontrado.")
 
 
 def detect_formats(texto):
